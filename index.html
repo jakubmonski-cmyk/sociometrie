@@ -1,0 +1,944 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Sociometrie třídy</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: horní lišta (třída + záložky Sběr, Výsledky, Skupiny, Pro třídu, Třída, Info). Žák z QR vidí jen telefonní dotazník. Styl: měkké karty, barevné stupnice, avatary. */
+:root{
+  --bg:#f5f6fb; --surface:#ffffff; --ink:#1d2140; --muted:#5d6486; --line:#e1e4f2;
+  --accent:#3d5afe; --accent-ink:#ffffff; --accent-soft:#e4e9ff;
+  --sun:#ffd43b; --sun-ink:#3b2f00;
+  --pos:#12805c; --neg:#d6403a; --warn:#a96200; --pos-soft:#d9f5ea; --neg-soft:#fde4e2; --warn-soft:#fdf0d3;
+  --s1:#ff7b72; --s2:#ffa94d; --s3:#ffd43b; --s4:#a5d84a; --s5:#3fd1a0; --on-s:#1d2140;
+  --shadow:0 1px 2px rgba(29,33,64,.06),0 6px 18px rgba(29,33,64,.07);
+  --f-display:'Bricolage Grotesque','Arial Rounded MT Bold',system-ui,sans-serif;
+  --f-body:'Figtree',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#14172b; --surface:#1e2342; --ink:#eef0ff; --muted:#a6acd2; --line:#323968;
+  --accent:#8091ff; --accent-ink:#0e1233; --accent-soft:#2a3270;
+  --pos:#4fd6a2; --neg:#ff8c84; --warn:#f0b755; --pos-soft:#16382f; --neg-soft:#432320; --warn-soft:#3c2f12;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#14172b; --surface:#1e2342; --ink:#eef0ff; --muted:#a6acd2; --line:#323968;
+  --accent:#8091ff; --accent-ink:#0e1233; --accent-soft:#2a3270;
+  --pos:#4fd6a2; --neg:#ff8c84; --warn:#f0b755; --pos-soft:#16382f; --neg-soft:#432320; --warn-soft:#3c2f12;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);
+  color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--f-body);padding-block:18px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1060px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;line-height:1.12;font-weight:700}
+h1{font-size:30px;font-weight:800} h2{font-size:22px} h3{font-size:17px}
+p{margin:0}
+.muted{color:var(--muted)} .mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.small{font-size:13.5px}
+.label{font-size:12.5px;color:var(--muted);font-weight:700;letter-spacing:.03em}
+a{color:var(--accent)}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+details summary{cursor:pointer;font-weight:600}
+
+header.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between}
+.brand{display:flex;flex-direction:column;gap:4px;min-width:0}
+.brand select{width:auto;max-width:100%;padding:4px 10px;font-size:14px;font-weight:600;border-width:1.5px}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;background:var(--surface);border-radius:22px;padding:4px;box-shadow:var(--shadow)}
+.tabs button{border:0;background:none;padding:8px 14px;border-radius:999px;font-weight:600;color:var(--muted)}
+.tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
+.note{background:var(--accent-soft);border-radius:14px;padding:10px 14px;font-size:14px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between}
+.note.warn{background:var(--warn-soft)}
+.note.bad{background:var(--neg-soft)}
+
+.panel{background:var(--surface);border-radius:18px;padding:20px;min-width:0;box-shadow:var(--shadow)}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+@media (max-width:760px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.stack{display:flex;flex-direction:column;gap:14px;min-width:0}
+.rowf{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+
+.btn{border:0;background:var(--accent);color:var(--accent-ink);border-radius:14px;padding:12px 18px;font-weight:700;min-height:46px}
+.btn.ghost{background:var(--accent-soft);color:var(--ink)}
+.btn.danger{background:var(--neg);color:#fff}
+.btn.sm{padding:8px 14px;min-height:38px;font-size:14px}
+.btn.block{width:100%}
+.btn[disabled]{opacity:.4;cursor:not-allowed}
+select,input[type=text],textarea{font:inherit;width:100%;padding:11px 13px;border-radius:12px;border:2px solid var(--line);background:var(--bg);color:var(--ink)}
+textarea{resize:vertical;min-height:110px;font-family:var(--f-mono);font-size:14px}
+.switch{display:flex;gap:12px;align-items:flex-start;cursor:pointer}
+.switch input{width:22px;height:22px;margin-top:2px;accent-color:var(--accent);flex:none}
+.choice{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.choice label{display:flex;gap:10px;align-items:flex-start;border:2px solid var(--line);border-radius:14px;padding:12px;cursor:pointer}
+.choice label:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.choice input{accent-color:var(--accent);margin-top:4px}
+
+.av{--h:200;display:inline-grid;place-items:center;width:var(--sz,40px);height:var(--sz,40px);border-radius:50%;background:hsl(var(--h) 80% 80%);color:#1d2140;font-weight:800;font-family:var(--f-display);font-size:calc(var(--sz,40px)*.4);flex:none}
+.pill{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 12px;font-size:13.5px;font-weight:700}
+.pill::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.pill.ok{background:var(--pos-soft);color:var(--pos)} .pill.wait{background:var(--warn-soft);color:var(--warn)} .pill.bad{background:var(--neg-soft);color:var(--neg)}
+
+/* žák (telefon) */
+.phone{width:100%;max-width:420px;margin:0 auto;background:var(--surface);border-radius:28px;padding:20px;display:flex;flex-direction:column;gap:18px;min-height:600px;box-shadow:var(--shadow)}
+.phone.full{min-height:calc(100dvh - 76px);box-shadow:none;background:transparent;padding:4px 0}
+.dots{height:10px;background:var(--line);border-radius:6px;overflow:hidden}
+.dots>i{display:block;height:100%;background:linear-gradient(90deg,var(--s2),var(--s3),var(--s5));border-radius:6px;transition:width .3s}
+.q{font-family:var(--f-display);font-size:22px;font-weight:700;line-height:1.2;text-wrap:balance}
+.who{display:flex;align-items:center;gap:14px}
+.who b{font-family:var(--f-display);font-size:30px;line-height:1.05;font-weight:800}
+.scale{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.scale button{height:52px;border:0;border-radius:14px;background:var(--bg);font-family:var(--f-display);font-weight:800;font-size:20px;box-shadow:inset 0 -5px 0 var(--c)}
+.scale button.on{background:var(--c);color:var(--on-s);box-shadow:none;transform:translateY(-2px)}
+.ends{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:6px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:0;background:var(--bg);border-radius:999px;padding:8px 14px 8px 8px;min-height:46px;display:flex;align-items:center;gap:9px;font-weight:600}
+.chip .av{--sz:30px}
+.chip.on{background:var(--accent);color:var(--accent-ink)}
+.chip.neg.on{background:var(--neg);color:#fff}
+.chip.plain{padding:8px 16px}
+.chip[disabled]{opacity:.38;cursor:not-allowed}
+.bubble{background:var(--sun);color:var(--sun-ink);border-radius:16px;padding:12px 14px;font-weight:600}
+.big-ok{font-family:var(--f-display);font-size:64px;line-height:1;color:var(--pos)}
+.qr{background:#fff;padding:12px;border-radius:16px;width:max-content;max-width:100%}
+.qr svg{display:block;width:190px;height:190px}
+.codebox{font-family:var(--f-mono);font-size:12.5px;word-break:break-all;background:var(--bg);border-radius:12px;padding:10px 12px;user-select:all}
+
+/* učitel */
+.subtabs{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.subtabs button{border:0;background:var(--surface);border-radius:999px;padding:7px 15px;font-weight:600;box-shadow:var(--shadow)}
+.subtabs button[aria-selected="true"]{background:var(--accent-soft);box-shadow:inset 0 0 0 2px var(--accent)}
+.rowf select{width:auto}
+.subtabs select{width:auto;padding:6px 10px;font-size:14px;border-width:1.5px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.tile{background:var(--surface);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:2px;box-shadow:var(--shadow)}
+.tile b{font-family:var(--f-display);font-size:30px;font-weight:800}
+.tag{display:inline-block;border-radius:999px;padding:2px 10px;font-size:12.5px;font-weight:700;white-space:nowrap}
+.tag.star{background:var(--pos-soft);color:var(--pos)}
+.tag.rej{background:var(--neg-soft);color:var(--neg)}
+.tag.izol,.tag.vliv{background:var(--warn-soft);color:var(--warn)}
+.tag.mid{background:var(--bg);color:var(--muted)}
+.attn{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
+.attn li{display:flex;gap:6px 10px;align-items:center;flex-wrap:wrap;padding:10px 0;border-top:1px solid var(--line)}
+.attn li:first-child{border-top:0}
+.kl{display:grid;grid-template-columns:minmax(0,1fr) 110px 34px;gap:10px;align-items:center;font-size:14.5px}
+.kl .track{height:10px;background:var(--line);border-radius:6px;overflow:hidden}
+.kl .track i{display:block;height:100%;background:var(--accent);border-radius:6px}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:12.5px;color:var(--muted);font-weight:700}
+td.n,th.n{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+tr.sel td{background:var(--accent-soft)}
+tbody tr[data-a]{cursor:pointer}
+.sg{width:100%;height:auto;display:block}
+.sg text{fill:var(--ink);font:11px var(--f-body)}
+.sg .ring{fill:none;stroke:var(--line);stroke-dasharray:3 5}
+.sg .e-mut{stroke:var(--accent);stroke-width:2.6;stroke-linecap:round}
+.sg .e-pos{stroke:var(--muted);stroke-width:1;opacity:.45}
+.sg .e-neg{stroke:var(--neg);stroke-width:1.5;stroke-dasharray:5 4}
+.sg .dim{opacity:.08}
+.sg .node{cursor:pointer}
+.sg .node circle{stroke:var(--surface);stroke-width:2.5}
+.sg .node.s-star circle{fill:var(--pos)} .sg .node.s-rej circle{fill:var(--neg)}
+.sg .node.s-izol circle,.sg .node.s-vliv circle{fill:var(--warn)} .sg .node.s-mid circle{fill:var(--muted)}
+.sg .node.sel circle{stroke:var(--ink);stroke-width:3}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted)}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;background:var(--c)}
+dl.det{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;font-size:14.5px}
+dl.det dt{color:var(--muted)} dl.det dd{margin:0}
+.live{display:flex;flex-wrap:wrap;gap:8px}
+.live .chip{cursor:default;padding-right:14px;font-size:14.5px}
+.live .chip.on{background:var(--accent-soft);color:var(--ink)}
+.live .chip.fill{background:var(--warn-soft);color:var(--ink)}
+.live .chip.done{background:var(--pos-soft);color:var(--pos)}
+.live .chip small{font-weight:500;color:var(--muted)}
+.fb{display:flex;flex-direction:column;gap:6px;font-size:14px}
+.fb .ok{color:var(--pos)} .fb .bad{color:var(--neg)}
+.doc ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:5px}
+.doc section{display:flex;flex-direction:column;gap:8px}
+.chart{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font:11px var(--f-body)}
+.chart .val{fill:var(--ink);font-weight:700;font-size:12px}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .ln{fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round}
+.chart .pt{fill:var(--accent);stroke:var(--surface);stroke-width:2}
+.grp{display:flex;flex-direction:column;gap:8px}
+.grp .m{display:flex;align-items:center;gap:10px}
+.grp .m small{display:block;color:var(--muted);font-size:12.5px;line-height:1.2}
+.grp .m small.ok{color:var(--pos)} .grp .m small.no{color:var(--warn)}
+
+/* souhrn pro třídu */
+.show{background:var(--surface);border-radius:28px;padding:clamp(20px,4vw,48px);box-shadow:var(--shadow);display:flex;flex-direction:column;gap:clamp(18px,3vw,32px)}
+.show:fullscreen{border-radius:0;justify-content:center;overflow:auto}
+.show h2{font-size:clamp(26px,4vw,48px);font-weight:800}
+.show .big{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+@media (max-width:700px){.show .big{grid-template-columns:minmax(0,1fr)}}
+.show .card{background:var(--bg);border-radius:22px;padding:22px;display:flex;flex-direction:column;gap:6px}
+.show .card b{font-family:var(--f-display);font-size:clamp(40px,6vw,72px);font-weight:800;line-height:1}
+.show .card span{font-size:clamp(15px,1.6vw,20px)}
+.show .card .chg{font-size:15px;font-weight:700}
+.chg.up{color:var(--pos)} .chg.down{color:var(--neg)} .chg.same{color:var(--muted)}
+.show .card.sun{background:var(--sun);color:var(--sun-ink)}
+
+/* lístky */
+.slips{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.slip{background:#fff;color:#111;border:1.5px dashed #9aa;border-radius:10px;padding:14px;display:flex;gap:14px;align-items:center;break-inside:avoid}
+.slip .qrb{flex:none;line-height:0}
+.slip .qrb svg{width:120px;height:120px}
+.slip .t{display:flex;flex-direction:column;gap:3px;min-width:0}
+.slip .t b{font-family:var(--f-display);font-size:19px;line-height:1.1}
+.slip .t small{font-size:12px;color:#444}
+.slip .t .cd{font-family:var(--f-mono);font-size:13px;letter-spacing:.04em}
+@media print{
+  @page{size:A4;margin:8mm}
+  body{background:#fff;padding:0}
+  .noprint{display:none!important}
+  .wrap{max-width:none;gap:0}
+  .panel{box-shadow:none;padding:0;background:#fff}
+  .slips{grid-template-columns:1fr 1fr;gap:0}
+  .slip{height:54mm;border-radius:0;padding:5mm;gap:5mm}
+  .slip .qrb svg{width:40mm;height:40mm}
+  .slip .t b{font-size:15pt} .slip .t small{font-size:8.5pt} .slip .t .cd{font-size:10pt}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap" id="root"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+/* ================= nastavení spojení ================= */
+const PEER_PREFIX='kolofik-sociometrie-';
+const PEER_OPTS=Object.assign({debug:0,config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]}},window.SOC_PEER_OPTS||{});
+
+/* ================= pomocné ================= */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+const sd=a=>{const m=mean(a);return Math.sqrt(mean(a.map(x=>(x-m)**2)))||1};
+const f1=x=>x==null||isNaN(x)?'–':x.toFixed(1).replace('.',',');
+const cl=x=>Math.max(1,Math.min(5,x));
+const MAXN=36, ALPH='23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+function randStr(n,al){al=al||ALPH;const a=new Uint32Array(n);crypto.getRandomValues(a);return Array.from(a,v=>al[v%al.length]).join('')}
+function b64e(s){const b=new TextEncoder().encode(s);let t='';b.forEach(c=>t+=String.fromCharCode(c));return btoa(t).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
+function b64d(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';const t=atob(s);return new TextDecoder().decode(Uint8Array.from(t,c=>c.charCodeAt(0)))}
+function chk(s){let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))%46656;return h.toString(36).padStart(3,'0')}
+function qrSvg(text,ecc){try{const q=qrcode(0,ecc||'L');q.addData(text);q.make();return q.createSvgTag({cellSize:4,margin:0,scalable:true})}catch(e){return '<span class="small" style="color:#900">QR kód nejde vytvořit.</span>'}}
+function avatar(name,idx,sz){const ini=(name.match(/[A-Za-zÀ-ž]/)||['?'])[0].toUpperCase();return `<span class="av" style="--h:${(idx*47+20)%360};--sz:${sz||40}px" aria-hidden="true">${esc(ini)}</span>`}
+function baseUrl(){try{return location.href.split('#')[0].split('?')[0]}catch(e){return ''}}
+function shortName(line,mode){line=line.trim().replace(/\s+/g,' ').replace(/[|~]/g,'');const p=line.split(' ');if(!mode||p.length<2)return line;return p[0]+' '+p[p.length-1][0].toUpperCase()+'.'}
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const fmtDate=iso=>{const d=new Date(iso);return d.getDate()+'. '+(d.getMonth()+1)+'. '+d.getFullYear()};
+const shortDate=iso=>{const d=new Date(iso);return d.getDate()+'. '+(d.getMonth()+1)+'.'};
+const TYPE={c:'Check-in',f:'Plné kolo'};
+function copyText(t,done){
+  const fb=()=>{const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done(true)}catch(e){done(false)}ta.remove()};
+  try{navigator.clipboard.writeText(t).then(()=>done(true),fb)}catch(e){fb()}
+}
+
+/* ================= otázky ================= */
+const KLIMA=['Ve třídě se cítím dobře.','Když něco nevím, nebojím se zeptat spolužáků.','Můžu říct svůj názor a nikdo se mi nesměje.','Spolužáci si ve třídě navzájem pomáhají.','Ve třídě se dodržují dohodnutá pravidla.'];
+const KL_SHORT=['Cítím se dobře','Nebojím se zeptat','Nikdo se nesměje','Pomáháme si','Dodržujeme pravidla'];
+const KL_SHOW=['Ve třídě se cítíme dobře','Nebojíme se zeptat','Můžeme říct názor','Pomáháme si','Dodržujeme pravidla'];
+
+/* ================= ukázková třída ================= */
+const DEMO_NAMES=['Adam N.','Barbora K.','Dominik S.','Ema P.','Filip H.','Ivo R.','Jakub V.','Karolína B.','Lukáš D.','Marek Z.','Nikolas F.','Ondřej C.','Patrik B.','Radek T.'];
+const D_CL=[0,1,0,1,0,9,0,1,2,2,9,2,0,2];
+const D_POP=[.3,.3,1.5,.6,.5,-.1,.5,.3,.2,-.6,-1.6,.1,.2,.2];
+const D_INF=[.2,0,1.6,.1,.8,-1,.3,0,.5,1.5,.9,0,.1,0];
+function demoResp(n,o){
+  const r=rng(o.seed),R=Array(n).fill(null);
+  for(let i=0;i<n;i++){ if(o.missing.includes(i))continue;
+    const a={symp:{},vliv:{},coop:[],free:[],neg:[],klima:[],ubl:'ne'},sc={},sf={},sy={};
+    for(let j=0;j<n;j++){ if(j===i)continue;
+      const same=D_CL[i]===D_CL[j]&&D_CL[i]!==9;
+      sy[j]=cl(Math.round(3+.9*D_POP[j]+(same?.9:0)+(r()-.5)*1.6));
+      if(o.type==='f'){a.symp[j]=sy[j];a.vliv[j]=cl(Math.round(3+.9*D_INF[j]+(r()-.5)*1.4))}
+      sc[j]=sy[j]+(same?.8:0)+(r()-.5)*1.2+(j===5?o.ivo:0);
+      sf[j]=sy[j]+(same?1.6:0)+(r()-.5)*1.2+(j===5?o.ivo:0);
+    }
+    const top=m=>Object.keys(m).map(Number).sort((x,y)=>m[y]-m[x]).slice(0,3);
+    a.coop=top(sc);a.free=top(sf);
+    if(o.neg)a.neg=Object.keys(sy).map(Number).filter(j=>sy[j]<=2&&!a.coop.includes(j)&&!a.free.includes(j)).sort((x,y)=>sy[x]-sy[y]).slice(0,2);
+    const base=4+o.kl-((i===10||i===5)?1.3:0);
+    a.klima=[0,1,2,3,4].map(k=>cl(Math.round(base+(k===4?-.6:0)+(r()-.5)*1.6)));
+    a.ubl=[5,10,1].slice(0,o.ubl).includes(i)?'ano':(i===3?'nevim':'ne');
+    R[i]=a;
+  }
+  return R;
+}
+function newClass(name,names,base){
+  const codes=new Set(),st=names.map(n=>{let c;do{c=randStr(6)}while(codes.has(c));codes.add(c);return{name:n,code:c}});
+  return {id:randStr(10,'abcdefghijkmnpqrstuvwxyz23456789'),name,base,neg:false,students:st,rounds:[]};
+}
+function demoClass(){
+  const c=newClass('1.A strojní mechanik / nástrojař (ukázka)',DEMO_NAMES,baseUrl());c.demo=true;const n=DEMO_NAMES.length;
+  c.rounds=[
+    {id:'d1',date:'2026-09-03T08:00:00',type:'c',neg:false,resp:demoResp(n,{seed:3,type:'c',neg:false,ivo:-2.2,kl:-.5,ubl:3,missing:[4,13]})},
+    {id:'d2',date:'2026-09-24T08:00:00',type:'c',neg:false,resp:demoResp(n,{seed:5,type:'c',neg:false,ivo:-1.8,kl:-.3,ubl:2,missing:[11]})},
+    {id:'d3',date:'2026-10-14T08:00:00',type:'f',neg:true,resp:demoResp(n,{seed:7,type:'f',neg:true,ivo:-1.2,kl:0,ubl:2,missing:[11,13]})}
+  ];
+  return c;
+}
+
+/* ================= kódování ================= */
+function studentLink(c,i){return (c.base||baseUrl())+'#v2~'+c.id+'~'+i.toString(36)+'~'+c.students[i].code+'~'+b64e(c.students.map(s=>s.name).join('|'))}
+function parseStudentHash(h){
+  try{const p=h.replace(/^#/,'').split('~');if(p[0]!=='v2'||p.length<5)return null;
+    const names=b64d(p[4]).split('|'),idx=parseInt(p[2],36);
+    if(names.length<2||!(idx>=0&&idx<names.length))return null;
+    return {cid:p[1],idx,code:p[3],names};
+  }catch(e){return null}
+}
+function encodeResp(cid,idx,code,n,type,a){
+  const dig=m=>Array.from({length:n},(_,j)=>j===idx?'0':String(m[j]||0)).join('');
+  const ix=l=>l.map(j=>j.toString(36)).join('');
+  const body=['R2',cid,idx.toString(36),code,type,type==='f'?dig(a.symp):'',type==='f'?dig(a.vliv):'',ix(a.coop),ix(a.free),ix(a.neg),a.klima.join('')+({ano:'a',ne:'n',nevim:'x'}[a.ubl]||'x')].join('~');
+  return body+'~'+chk(body);
+}
+function decodeResp(text,c){
+  const t=text.trim();
+  if(t.includes('#v2~'))return {err:'Tohle je lístek se vstupním odkazem, ne odpověď.'};
+  const p=t.split('~');
+  if(p[0]!=='R2'||p.length!==12)return {err:'Tohle nevypadá jako odpovědní kód.'};
+  if(chk(p.slice(0,11).join('~'))!==p[11])return {err:'Kód je poškozený (překlep nebo useknutý konec).'};
+  if(p[1]!==c.id)return {err:'Kód patří do jiné třídy.'};
+  const n=c.students.length,idx=parseInt(p[2],36);
+  if(!(idx>=0&&idx<n))return {err:'Neplatný žák v kódu.'};
+  if(c.students[idx].code!==p[3])return {err:'Kód žáka nesedí s lístkem.'};
+  const type=p[4]==='f'?'f':'c',a={symp:{},vliv:{},coop:[],free:[],neg:[],klima:[],ubl:'nevim'};
+  if(type==='f'){
+    if(p[5].length!==n||p[6].length!==n)return {err:'Kód neodpovídá počtu žáků ve třídě.'};
+    for(let j=0;j<n;j++){if(j===idx)continue;const s=+p[5][j],v=+p[6][j];if(!(s>=1&&s<=5&&v>=1&&v<=5))return {err:'Kód obsahuje neplatné hodnoty.'};a.symp[j]=s;a.vliv[j]=v}
+  }
+  const lst=s=>[...new Set(s.split('').map(ch=>parseInt(ch,36)))].filter(j=>j>=0&&j<n&&j!==idx);
+  a.coop=lst(p[7]).slice(0,3);a.free=lst(p[8]).slice(0,3);a.neg=lst(p[9]).slice(0,2);
+  a.klima=p[10].slice(0,5).split('').map(Number);
+  if(a.klima.length!==5||a.klima.some(v=>!(v>=1&&v<=5)))return {err:'Kód obsahuje neplatné hodnoty.'};
+  a.ubl={a:'ano',n:'ne',x:'nevim'}[p[10][5]]||'nevim';
+  return {idx,type,a};
+}
+
+/* ================= úložiště ================= */
+const KEY='sociometrie.v2';
+let DB={v:2,classes:[],cur:null};
+function save(){try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){}}
+function load(){try{const t=localStorage.getItem(KEY);if(t){const d=JSON.parse(t);if(d&&Array.isArray(d.classes))return d}}catch(e){}return null}
+const CL=()=>DB.classes.find(c=>c.id===DB.cur)||DB.classes[0];
+const usable=c=>c.rounds.filter(r=>r.resp.filter(Boolean).length>=2);
+
+/* ================= výpočty ================= */
+const STAT={star:'Hvězda',rej:'Odmítaný',izol:'Izolovaný',vliv:'Vlivný, méně oblíbený',mid:'Střední pole'};
+function compute(c,r){
+  const N=c.students.length,R=r.resp,neg=r.neg,rat=r.type==='f';
+  const rs=[];R.forEach((x,i)=>{if(x)rs.push(i)});
+  const P=R.map(o=>o?new Set([...o.coop,...o.free]):null);
+  const st=c.students.map((s,j)=>{
+    const sy=[],vl=[];let pos=0,ng=0;const posFrom=[],negFrom=[];
+    rs.forEach(i=>{ if(i===j)return;
+      if(rat&&R[i].symp[j]){sy.push(R[i].symp[j]);vl.push(R[i].vliv[j])}
+      const p=(R[i].coop.includes(j)?1:0)+(R[i].free.includes(j)?1:0);
+      if(p){pos+=p;posFrom.push(i)}
+      if(neg&&R[i].neg.includes(j)){ng++;negFrom.push(i)}
+    });
+    const mut=rs.filter(i=>i!==j&&P[i].has(j)&&P[j]&&P[j].has(i));
+    return {j,name:s.name,got:!!R[j],sy:rat?mean(sy):null,vl:rat?mean(vl):null,pos,neg:ng,posFrom,negFrom,mut,
+      nak:(rat&&R[j]&&Object.keys(R[j].symp).length)?mean(Object.values(R[j].symp)):null,out:R[j]?[...P[j]]:[]};
+  });
+  ['sy','vl','pos','neg'].forEach(k=>{const a=st.map(s=>s[k]||0),m=mean(a),d=sd(a);st.forEach(s=>{(s.z=s.z||{})[k]=((s[k]||0)-m)/d})});
+  st.forEach(s=>{
+    const rej=neg?(s.neg>=3&&s.z.neg>=1&&(!rat||s.z.sy<=-.5)):(rat&&s.z.sy<=-1.2&&s.z.pos<=-.3);
+    if(rs.length<4)s.status='mid';
+    else if(rej)s.status='rej';
+    else if(s.pos<=1&&s.mut.length===0)s.status='izol';
+    else if(rat&&s.z.vl>=.8&&s.z.sy<=0)s.status='vliv';
+    else if(s.z.pos>=1&&(!rat||s.z.sy>=0))s.status='star';
+    else s.status='mid';
+    s.comp=s.z.pos+(rat?s.z.sy:0)+.3*s.mut.length;
+  });
+  let pairs=0;st.forEach(s=>s.mut.forEach(i=>{if(i<s.j)pairs++}));
+  const klima=[0,1,2,3,4].map(k=>mean(rs.map(i=>R[i].klima[k])));
+  return {st,rs,pairs,N,rat,neg,dens:N>1?pairs/(N*(N-1)/2):0,sy:rat?mean(st.map(s=>s.sy)):null,klima,
+    mood:mean(klima),withMut:rs.filter(i=>st[i].mut.length>0).length,izol:st.filter(s=>s.status==='izol').length,
+    ubl:rs.filter(i=>R[i].ubl==='ano').length};
+}
+
+/* ================= stav UI ================= */
+let UI={tab:'sber',sub:'prehled',round:null,sel:null,edge:'mut',names:null,shorten:true,confirm:null,fb:[],gsize:3,gseed:1,newType:'c',newNeg:false,err:''};
+let MODE='teacher', ST=null, NET=null, SESS=null, CAM=null;
+
+/* ================= ŽÁK: dotazník ================= */
+const SKEY=()=>'sociometrie.out.'+ST.cid+'.'+ST.idx;
+function stuRecord(){try{return JSON.parse(localStorage.getItem(SKEY())||'null')}catch(e){return null}}
+function stuStore(o){try{localStorage.setItem(SKEY(),JSON.stringify(o))}catch(e){}}
+function startStudent(info,embedded){
+  ST={...info,embedded,cfg:null,plan:['intro'],step:0,order:[],i:0,out:'',sent:false,a:null};
+  if(!embedded){const rec=stuRecord();if(rec&&!rec.acked){ST.out=rec.out;ST.cfg={id:rec.rid,type:'c'};ST.plan=['done'];ST.step=0}}
+}
+function beginSurvey(){
+  const cfg=ST.cfg||{id:null,type:'c',neg:false};ST.cfg=cfg;
+  ST.plan=['rate','coop','free'].filter(s=>s!=='rate'||cfg.type==='f').concat(cfg.neg?['neg']:[],['klima','done']);
+  ST.order=ST.names.map((_,i)=>i).filter(i=>i!==ST.idx);
+  const r=rng(ST.idx+3);for(let k=ST.order.length-1;k>0;k--){const m=Math.floor(r()*(k+1));[ST.order[k],ST.order[m]]=[ST.order[m],ST.order[k]]}
+  ST.a={symp:{},vliv:{},coop:[],free:[],neg:[],klima:[0,0,0,0,0],ubl:''};ST.step=0;ST.i=0;
+}
+function progressPct(){
+  const L=ST.plan.includes('rate')?ST.order.length:0,cur=ST.plan[ST.step],di=ST.plan.length-1,start=L?1:0;
+  const total=L+di-start;let u=0;
+  if(cur==='rate')u=ST.i;else u=L+ST.step-start;
+  return Math.max(0,Math.min(100,Math.round(100*u/total)));
+}
+function netPill(){
+  if(ST.embedded)return '';
+  const s=NET?NET.state:'idle';
+  const m={on:['ok','Spojeno s učitelem'],connecting:['wait','Připojuji se k učiteli…'],wait:['wait','Učitel zatím nespustil sběr. Zkouším to znovu…'],err:['bad','Spojení s učitelem nejde navázat'],bad:['bad',NET&&NET.msg||'Lístek nepatří do této třídy'],idle:['wait','Připojuji se…']}[s]||['wait','…'];
+  return `<span class="pill ${m[0]}" id="netpill">${esc(m[1])}</span>`;
+}
+function phoneInner(){
+  const cur=ST.plan[ST.step],me=ST.names[ST.idx],A=ST.a;
+  let h=(cur==='intro'||cur==='done')?'':`<div class="dots" role="progressbar" aria-valuenow="${progressPct()}" aria-valuemin="0" aria-valuemax="100"><i style="width:${progressPct()}%"></i></div>`;
+  const nav=(next,dis,back=true)=>`<div class="rowf" style="margin-top:auto;flex-wrap:nowrap">${back?`<button class="btn ghost" data-a="back" style="flex:0 0 36%">Zpět</button>`:''}<button class="btn" style="flex:1" data-a="${next}" ${dis?'disabled':''}>${next==='send'?'Odeslat':'Další'}</button></div>`;
+  if(cur==='intro'){
+    const t=ST.cfg&&ST.cfg.type==='f'?'asi 8 minut':'asi 3 minuty';
+    h+=`<div class="stack"><div class="who">${avatar(me,ST.idx,64)}<b>${esc(me)}</b></div>
+      <h2>Jak se máte ve třídě?</h2>
+      <p>Tohle není test. Nejsou tu správné ani špatné odpovědi a nikdo ti nedá známku. Spolužáci tvoje odpovědi neuvidí, uvidí je jen učitel.</p>
+      <div class="bubble">Odpovídej podle toho, jak to opravdu cítíš. Zabere to ${t}.</div>
+      ${netPill()}
+      <p class="small muted">Nejsi ${esc(me)}? Zavři stránku a řekni to učiteli.</p></div>
+      <button class="btn block" style="margin-top:auto" data-a="start" ${NET&&NET.state==='bad'?'disabled':''}>Jdeme na to</button>`;
+  }else if(cur==='rate'){
+    const j=ST.order[ST.i],val=k=>A[k][j]||0;
+    const sc=k=>`<div class="scale">${[1,2,3,4,5].map(v=>`<button style="--c:var(--s${v})" data-a="rate" data-k="${k}" data-v="${v}" class="${val(k)===v?'on':''}" aria-pressed="${val(k)===v}">${v}</button>`).join('')}</div>`;
+    h+=`<div class="label">Spolužák ${ST.i+1} z ${ST.order.length}</div>
+      <div class="who">${avatar(ST.names[j],j,64)}<b>${esc(ST.names[j])}</b></div>
+      <div><div class="q">Jak ti je sympatický/á?</div>${sc('symp')}<div class="ends"><span>moc ne</span><span>hodně</span></div></div>
+      <div><div class="q">Jak moc se s ním/ní ve třídě počítá?</div><div class="small muted" style="margin-top:2px">Ostatní ho/ji poslouchají nebo se podle něj/ní řídí.</div>${sc('vliv')}<div class="ends"><span>vůbec</span><span>hodně</span></div></div>
+      ${nav('next',!(val('symp')&&val('vliv')),ST.i>0)}`;
+  }else if(cur==='coop'||cur==='free'||cur==='neg'){
+    const max=cur==='neg'?2:3;
+    const qs={coop:['S kým by ses nejradši dal/a do týmu na úkol v dílně?','Vyber 1 až 3 spolužáky.'],free:['S kým by ses nejradši bavil/a o přestávce nebo po škole?','Vyber 1 až 3 spolužáky.'],neg:['S kým by ses do týmu nechtěl/a dávat?','Nepovinné. Můžeš vybrat nejvýš 2 spolužáky, nebo klidně nikoho.']}[cur];
+    const chips=ST.order.map(j=>{const on=A[cur].includes(j),blocked=cur==='neg'&&(A.coop.includes(j)||A.free.includes(j));
+      return `<button class="chip ${cur==='neg'?'neg':''} ${on?'on':''}" data-a="nom" data-k="${cur}" data-j="${j}" aria-pressed="${on}" ${(!on&&(A[cur].length>=max||blocked))?'disabled':''}>${avatar(ST.names[j],j,30)}${esc(ST.names[j])}</button>`}).join('');
+    h+=`<div class="q">${qs[0]}</div><p class="small muted">${qs[1]} Zvoleno ${A[cur].length} z ${max}.</p><div class="chips">${chips}</div>${nav('next',cur!=='neg'&&!A[cur].length,ST.step>0)}`;
+  }else if(cur==='klima'){
+    const rows=KLIMA.map((t,k)=>`<div class="stack" style="gap:8px"><div>${t}</div><div class="scale">${[1,2,3,4,5].map(v=>`<button style="--c:var(--s${v})" data-a="kl" data-k="${k}" data-v="${v}" class="${A.klima[k]===v?'on':''}" aria-pressed="${A.klima[k]===v}">${v}</button>`).join('')}</div></div>`).join('');
+    const ub=[['ano','Ano'],['ne','Ne'],['nevim','Nevím']].map(([v,t])=>`<button class="chip plain ${A.ubl===v?'on':''}" data-a="ubl" data-v="${v}" aria-pressed="${A.ubl===v}">${t}</button>`).join('');
+    h+=`<div class="q">Jaká je ve třídě nálada?</div><p class="small muted">1 = vůbec ne, 5 = přesně tak</p>${rows}
+      <div class="stack" style="gap:8px"><div>Je ve třídě někdo, komu se ostatní smějí, ignorují ho nebo mu ubližují?</div><div class="chips">${ub}</div>${A.ubl==='ano'?'<div class="bubble">Díky, že to říkáš. Jestli chceš, řekni to učiteli i osobně.</div>':''}</div>
+      ${nav('send',!(A.klima.every(Boolean)&&A.ubl))}`;
+  }else{
+    const sent=ST.sent;
+    h+=`<div class="stack">${sent?`<div class="big-ok" aria-hidden="true">✓</div><h2>Odesláno, díky!</h2><p>Učitel tvoje odpovědi dostal. Stránku můžeš zavřít.</p>`
+      :`<h2>Hotovo, díky!</h2>${ST.embedded?'<p>V náhledu se odpověď neposílá. Můžeš ji přidat tlačítkem níž.</p>':`<p>Odpověď se odešle sama, jakmile bude učitel připojený. Nech stránku zatím otevřenou.</p>${netPill()}`}`}</div>
+      ${sent?'':`<details ${ST.embedded?'open':''}><summary>${ST.embedded?'Odpovědní kód':'Nejde to odeslat? Ukaž učiteli tento kód'}</summary><div class="stack" style="margin-top:12px"><div class="qr" aria-label="Odpovědní QR kód">${qrSvg(ST.out,'M')}</div><div class="codebox">${esc(ST.out)}</div><button class="btn ghost" data-a="copyout">Zkopírovat kód</button></div></details>`}
+      ${ST.embedded?`<div class="stack" style="margin-top:auto"><button class="btn block" data-a="ingestout">Přidat do posledního kola (náhled)</button><button class="btn ghost block" data-a="restart">Znovu</button></div>`:''}`;
+  }
+  return h;
+}
+function phoneHTML(){return `<div class="phone ${ST.embedded?'':'full'}" id="phone">${phoneInner()}</div>`}
+function refreshPhone(){const p=$('#phone');if(p)p.innerHTML=phoneInner();if(!ST.embedded)sendProg()}
+function updNet(){const p=$('#netpill');if(p)p.outerHTML=netPill();const b=$('[data-a=start]');if(b)b.disabled=!!(NET&&NET.state==='bad')}
+
+/* ================= ŽÁK: spojení ================= */
+function netInit(){NET={peer:null,conn:null,state:'idle',msg:'',timer:0,dialT:0};netConnect()}
+function netRetry(ms){clearTimeout(NET.timer);NET.timer=setTimeout(netConnect,ms||4000)}
+function netConnect(){
+  if(NET.state==='bad'||ST.sent)return;
+  if(!window.Peer){NET.state='err';updNet();return}
+  if(!NET.peer||NET.peer.destroyed){
+    NET.peer=new Peer(PEER_OPTS);
+    NET.peer.on('open',dial);
+    NET.peer.on('error',e=>{if(e.type==='peer-unavailable'){NET.state='wait'}else{NET.state='err';try{NET.peer.destroy()}catch(_){}}updNet();netRetry()});
+    NET.peer.on('disconnected',()=>{try{NET.peer.reconnect()}catch(_){}});
+  }else if(NET.peer.open)dial();
+  else if(NET.peer.disconnected){try{NET.peer.reconnect()}catch(_){}}
+}
+function dial(){
+  if(NET.conn&&NET.conn.open)return;
+  NET.state=NET.state==='on'?'on':'connecting';updNet();
+  const c=NET.peer.connect(PEER_PREFIX+ST.cid,{reliable:true,serialization:'json'});NET.conn=c;
+  clearTimeout(NET.dialT);NET.dialT=setTimeout(()=>{if(!c.open){try{c.close()}catch(_){}if(NET.state!=='wait'){NET.state='err';updNet()}netRetry()}},12000);
+  c.on('open',()=>{clearTimeout(NET.dialT);c.send({t:'hi',idx:ST.idx,code:ST.code})});
+  c.on('data',onStuData);
+  c.on('close',()=>{if(NET.conn===c){NET.conn=null;if(NET.state==='on')NET.state='wait';updNet();netRetry(2000)}});
+  c.on('error',()=>{});
+}
+function onStuData(m){
+  if(!m||typeof m!=='object')return;
+  if(m.t==='cfg'){
+    if(!m.ok){NET.state='bad';NET.msg=m.msg||'Lístek nepatří do této třídy.';updNet();return}
+    NET.state='on';const rec=stuRecord();
+    if(ST.plan[0]==='intro'&&ST.step===0){ST.cfg=m.round;
+      if(m.done&&rec&&rec.acked&&rec.rid===m.round.id){ST.plan=['done'];ST.step=0;ST.sent=true}
+      refreshPhone();
+    }
+    updNet();
+    if(ST.out&&!ST.sent)trySend();
+  }else if(m.t==='ack'){
+    if(m.ok){ST.sent=true;stuStore({out:ST.out,rid:m.rid||(ST.cfg&&ST.cfg.id),acked:true});refreshPhone()}
+    else{NET.state='bad';NET.msg=m.msg||'Odpověď nešla uložit.';updNet()}
+  }
+}
+function trySend(){if(NET&&NET.conn&&NET.conn.open&&NET.state==='on')NET.conn.send({t:'resp',data:ST.out});else if(NET)netConnect()}
+let lastProg=-1;
+function sendProg(){if(!NET||!NET.conn||!NET.conn.open||NET.state!=='on'||ST.sent)return;const cur=ST.plan[ST.step];if(cur==='intro')return;const p=cur==='done'?100:progressPct();if(p!==lastProg){lastProg=p;try{NET.conn.send({t:'prog',p})}catch(e){}}}
+
+/* ================= UČITEL: živý sběr ================= */
+function curRound(){const c=CL();return SESS?c.rounds.find(r=>r.id===SESS.rid):null}
+function startSession(rid){
+  stopSession();
+  const c=CL(),r=c.rounds.find(x=>x.id===rid);
+  SESS={cid:c.id,rid,peer:null,state:'starting',msg:'',live:{}};
+  r.resp.forEach((x,i)=>{if(x)SESS.live[i]={st:'done'}});
+  if(!window.Peer){SESS.state='err';SESS.msg='Knihovnu pro spojení se nepodařilo načíst. Zkontroluj internet.';render();return}
+  const p=new Peer(PEER_PREFIX+c.id,PEER_OPTS);SESS.peer=p;
+  p.on('open',()=>{SESS.state='open';refreshSess()});
+  p.on('connection',conn=>{
+    conn.on('data',m=>onTeachData(conn,m));
+    conn.on('close',()=>{if(SESS&&conn.idx!=null&&SESS.live[conn.idx]&&SESS.live[conn.idx].st!=='done'){SESS.live[conn.idx].st='off';refreshSess()}});
+  });
+  p.on('disconnected',()=>{if(SESS&&SESS.peer===p){SESS.state='starting';refreshSess();setTimeout(()=>{try{p.reconnect()}catch(_){}},1500)}});
+  p.on('error',e=>{if(!SESS)return;
+    if(e.type==='unavailable-id'){SESS.state='err';SESS.msg='Sběr pro tuto třídu už běží v jiném okně nebo na jiném zařízení. Zavři ho tam, nebo chvíli počkej a zkus to znovu.'}
+    else if(e.type==='network'||e.type==='server-error'||e.type==='socket-error'||e.type==='socket-closed'){SESS.state='err';SESS.msg='Nepodařilo se spojit se spojovacím serverem. Zkontroluj internet. V náhledu uvnitř Claude živý sběr nefunguje, otevři aplikaci z její webové adresy.'}
+    else if(e.type==='peer-unavailable')return;
+    else{SESS.state='err';SESS.msg='Chyba spojení: '+e.type}
+    refreshSess();
+  });
+  render();
+}
+function stopSession(){if(SESS){try{SESS.peer&&SESS.peer.destroy()}catch(e){}SESS=null}}
+function onTeachData(conn,m){
+  if(!SESS||!m||typeof m!=='object')return;
+  const c=CL(),r=curRound();if(!r||c.id!==SESS.cid)return;
+  if(m.t==='hi'){
+    const s=c.students[m.idx];
+    if(!s||s.code!==m.code){conn.send({t:'cfg',ok:false,msg:'Tenhle lístek nepatří do třídy, pro kterou teď běží sběr.'});return}
+    conn.idx=m.idx;if(!SESS.live[m.idx]||SESS.live[m.idx].st!=='done')SESS.live[m.idx]={st:'on',p:0};
+    conn.send({t:'cfg',ok:true,round:{id:r.id,type:r.type,neg:r.neg},done:!!r.resp[m.idx]});refreshSess();
+  }else if(m.t==='prog'&&conn.idx!=null){if(SESS.live[conn.idx]&&SESS.live[conn.idx].st==='done')return;SESS.live[conn.idx]={st:'fill',p:+m.p||0};refreshSess()}
+  else if(m.t==='resp'){
+    const d=decodeResp(String(m.data||''),c);
+    if(d.err){conn.send({t:'ack',ok:false,msg:d.err});pushFb(false,d.err);refreshSess();return}
+    r.resp[d.idx]=d.a;save();SESS.live[d.idx]={st:'done'};conn.send({t:'ack',ok:true,rid:r.id});
+    pushFb(true,'Přijato: '+c.students[d.idx].name);refreshSess();
+  }
+}
+function pushFb(ok,t){UI.fb=[{ok,t,at:new Date().toLocaleTimeString('cs-CZ',{hour:'2-digit',minute:'2-digit'})}].concat(UI.fb).slice(0,6)}
+window.addEventListener('beforeunload',e=>{if(SESS&&SESS.state==='open'){e.preventDefault();e.returnValue=''}});
+
+function liveHTML(){
+  const c=CL(),r=curRound();
+  return c.students.map((s,i)=>{const l=SESS.live[i]||{st:'off'};
+    const t={off:'nepřipojen/a',on:'připojen/a',fill:'vyplňuje '+(l.p||0)+' %',done:'odevzdáno ✓'}[l.st];
+    return `<span class="chip ${l.st}">${avatar(s.name,i,30)}<span>${esc(s.name)}<br><small>${t}</small></span></span>`}).join('');
+}
+function sessHead(){
+  const s=SESS,c=CL(),r=curRound(),got=r.resp.filter(Boolean).length;
+  const pill=s.state==='open'?'<span class="pill ok">Sběr běží</span>':s.state==='starting'?'<span class="pill wait">Spouštím…</span>':'<span class="pill bad">Spojení nefunguje</span>';
+  return `<div class="rowf" style="justify-content:space-between"><div class="rowf">${pill}<b class="mono">${got}/${c.students.length}</b><span class="muted small">odevzdáno · ${TYPE[r.type]}${r.neg?' s negativními volbami':''} · ${fmtDate(r.date)}</span></div><button class="btn danger sm" data-a="stop">Ukončit sběr</button></div>${s.state==='err'?`<div class="note bad">${esc(s.msg)}</div>`:''}`;
+}
+function refreshSess(){if(UI.tab!=='sber')return;const a=$('#sesshead');if(a)a.innerHTML=sessHead();const b=$('#live');if(b)b.innerHTML=liveHTML();const f=$('#fb');if(f)f.innerHTML=fbHTML()}
+const fbHTML=()=>UI.fb.map(f=>`<div class="${f.ok?'ok':'bad'}">${esc(f.at||'')} ${esc(f.t)}</div>`).join('');
+
+function renderSber(){
+  const c=CL();
+  if(SESS&&SESS.cid===c.id){
+    return `<div class="stack"><div class="panel stack" id="sesshead">${sessHead()}</div>
+      <div class="grid2"><div class="panel stack"><h3>Kdo je připojený</h3><p class="small muted">Žáci naskenují svůj lístek. Jakmile odešlou, odpověď se tu sama objeví. Nech tuto stránku otevřenou až do konce.</p><div class="live" id="live">${liveHTML()}</div></div>
+      <div class="panel stack"><h3>Když spojení nejde</h3><p class="small muted">Pokud se žákovi odpověď neodešle, ukáže ti na telefonu odpovědní kód. Vlož ho sem nebo ho naskenuj.</p>
+        <div class="rowf"><button class="btn ghost sm" data-a="scan">${CAM?'Zastavit kameru':'Skenovat kamerou'}</button></div>${CAM?'<video id="cam" style="width:100%;border-radius:14px;background:#000;aspect-ratio:4/3;object-fit:cover" playsinline muted></video>':''}
+        <textarea id="paste" spellcheck="false" placeholder="R2~..." aria-label="Odpovědní kódy"></textarea><button class="btn ghost" data-a="paste">Přidat vložené kódy</button>
+        <div class="fb" id="fb">${fbHTML()}</div></div></div></div>`;
+  }
+  const last=c.rounds[c.rounds.length-1];
+  return `<div class="grid2"><div class="panel stack"><h2>Spustit sběr</h2>
+    <p class="muted small">Spusť sběr na začátku hodiny, rozdej žákům lístky a nech tuhle stránku otevřenou. Odpovědi ti budou chodit rovnou sem, nikde jinde se neukládají.</p>
+    <div class="choice" role="radiogroup" aria-label="Typ kola">
+      <label><input type="radio" name="rt" value="c" ${UI.newType==='c'?'checked':''}><span><b>Check-in</b><br><span class="small muted">Asi 3 minuty. Volby do týmu a na volný čas a nálada ve třídě. Hodí se několikrát za rok.</span></span></label>
+      <label><input type="radio" name="rt" value="f" ${UI.newType==='f'?'checked':''}><span><b>Plné kolo</b><br><span class="small muted">Asi 8 minut. Navíc hodnocení každého spolužáka (sympatie, vliv) podle principu SO-RA-D. Stačí jednou až dvakrát za rok.</span></span></label></div>
+    <label class="switch"><input type="checkbox" id="newNeg" ${UI.newNeg?'checked':''}><span>Zahrnout negativní volby<br><span class="small muted">„S kým by ses do týmu nechtěl/a dávat?“ Doporučuju jen v plném kole a s rozmyslem.</span></span></label>
+    <button class="btn" data-a="startnew">Spustit nové kolo</button>
+    ${last?`<button class="btn ghost" data-a="continue">Pokračovat v kole z ${fmtDate(last.date)} (${TYPE[last.type]}, ${last.resp.filter(Boolean).length}/${c.students.length})</button>`:''}</div>
+    <div class="panel stack"><h3>Proběhlá kola</h3>${c.rounds.length?`<ul class="attn">${c.rounds.slice().reverse().map(r=>`<li><b>${fmtDate(r.date)}</b><span class="tag mid">${TYPE[r.type]}</span><span class="muted small">${r.resp.filter(Boolean).length} z ${c.students.length} odpovědí</span></li>`).join('')}</ul>`:'<p class="muted">Zatím žádné. První kolo spustíš vlevo.</p>'}
+    <p class="small muted">Jak to funguje: žákův telefon se po naskenování lístku spojí přímo s tímto prohlížečem. Spojovací server jen pomůže zařízením se najít, odpovědi přes něj neprochází.</p></div></div>`;
+}
+function ingest(text){
+  const c=CL(),r=curRound()||c.rounds[c.rounds.length-1];
+  if(!r){pushFb(false,'Nejdřív spusť kolo.');return}
+  text.split(/\s*\n\s*/).map(x=>x.trim()).filter(Boolean).forEach(line=>{
+    const d=decodeResp(line,c);if(d.err){pushFb(false,d.err);return}
+    const re=!!r.resp[d.idx];r.resp[d.idx]=d.a;if(SESS)SESS.live[d.idx]={st:'done'};
+    pushFb(true,(re?'Přepsáno: ':'Přijato: ')+c.students[d.idx].name);
+  });
+  save();
+}
+async function startScan(){
+  try{const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});CAM={stream,last:'',t:0,timer:0};render();const v=$('#cam');v.srcObject=stream;await v.play();scanLoop()}
+  catch(e){CAM=null;pushFb(false,'Kamera není dostupná. Vlož kód textem.');render()}
+}
+function stopScan(){if(CAM){CAM.stream.getTracks().forEach(t=>t.stop());clearTimeout(CAM.timer);CAM=null}}
+function scanLoop(){
+  if(!CAM)return;const v=$('#cam');
+  if(v&&v.readyState>=2&&v.videoWidth&&window.jsQR){
+    const cv=CAM.cv||(CAM.cv=document.createElement('canvas')),s=Math.min(1,640/v.videoWidth);cv.width=v.videoWidth*s;cv.height=v.videoHeight*s;
+    const x=cv.getContext('2d',{willReadFrequently:true});x.drawImage(v,0,0,cv.width,cv.height);
+    const d=x.getImageData(0,0,cv.width,cv.height),r=jsQR(d.data,d.width,d.height,{inversionAttempts:'dontInvert'});
+    if(r&&r.data&&(r.data!==CAM.last||Date.now()-CAM.t>4000)){CAM.last=r.data;CAM.t=Date.now();ingest(r.data);refreshSess()}
+  }
+  CAM.timer=setTimeout(scanLoop,120);
+}
+
+/* ================= UČITEL: výsledky ================= */
+function pickRound(c){
+  const u=usable(c);if(!u.length)return null;
+  return u.find(r=>r.id===UI.round)||u[u.length-1];
+}
+function roundSelect(c,r){
+  const u=usable(c);if(u.length<2)return `<span class="muted small">${fmtDate(r.date)} · ${TYPE[r.type]}</span>`;
+  return `<label class="small muted" for="roundSel">Kolo</label><select id="roundSel">${u.map(x=>`<option value="${x.id}" ${x.id===r.id?'selected':''}>${fmtDate(x.date)} · ${TYPE[x.type]}</option>`).join('')}</select>`;
+}
+function emptyResults(c){return `<div class="panel stack"><h2>Zatím není z čeho počítat</h2><p class="muted">Výsledky se ukážou, jakmile v některém kole odpoví aspoň dva žáci. Kolo spustíš v záložce Sběr.</p></div>`}
+function renderVysledky(){
+  const c=CL(),r=pickRound(c);if(!r)return emptyResults(c);
+  const C=compute(c,r);
+  const subs=[['prehled','Přehled'],['sociogram','Sociogram'],['tabulka','Žáci'],['vyvoj','Vývoj'],['export','Export']];
+  const sub=subs.map(([k,t])=>`<button data-a="sub" data-t="${k}" aria-selected="${UI.sub===k}">${t}</button>`).join('');
+  const body=UI.sub==='prehled'?vOverview(C):UI.sub==='sociogram'?vSociogram(C,r):UI.sub==='tabulka'?vTable(C):UI.sub==='vyvoj'?vTrend(c):vExport();
+  return `<div class="stack"><div class="subtabs">${sub}<span style="flex:1"></span>${UI.sub==='vyvoj'||UI.sub==='export'?'':roundSelect(c,r)}</div>${body}</div>`;
+}
+function vOverview(C){
+  const order={rej:0,izol:1,vliv:2,star:3},att=C.st.filter(s=>s.status!=='mid').sort((a,b)=>order[a.status]-order[b.status]);
+  const why=s=>({
+    rej:C.neg?`${s.neg} negativních voleb${C.rat?`, sympatie ${f1(s.sy)} (třída ${f1(C.sy)})`:''}.`:`sympatie ${f1(s.sy)} (třída ${f1(C.sy)}) a málo pozitivních voleb.`,
+    izol:`${s.pos} pozitivní volba a žádná vzájemná vazba.`,
+    vliv:`vliv ${f1(s.vl)}, ale sympatie jen ${f1(s.sy)}.`,
+    star:`${s.pos} pozitivních voleb, ${s.mut.length} vzájemných vazeb.`}[s.status]);
+  const items=att.map(s=>`<li>${avatar(s.name,s.j,32)}<b>${esc(s.name)}</b><span class="tag ${s.status}">${STAT[s.status]}</span><span class="muted small">${why(s)}</span></li>`).join('');
+  const kl=C.klima.map((v,k)=>`<div class="kl"><span>${KL_SHORT[k]}</span><span class="track"><i style="width:${(v-1)/4*100}%"></i></span><span class="mono">${f1(v)}</span></div>`).join('');
+  return `<div class="tiles">
+    <div class="tile"><span class="label">Odpovědělo</span><b class="mono">${C.rs.length}/${C.N}</b></div>
+    <div class="tile"><span class="label">Nálada ve třídě</span><b>${f1(C.mood)}</b><span class="small muted">průměr klimatu 1 až 5</span></div>
+    <div class="tile"><span class="label">Vzájemné vazby</span><b>${C.pairs}</b><span class="small muted">${C.withMut} žáků má aspoň jednu</span></div>
+    <div class="tile"><span class="label">Signál ubližování</span><b>${C.ubl}</b><span class="small muted">žáků odpovědělo „ano“</span></div></div>
+  <div class="grid2"><div class="panel stack"><h3>Komu věnovat pozornost</h3><ul class="attn">${items||'<li class="muted">Nikdo nevybočuje.</li>'}</ul>
+    <p class="small muted">Statusy počítá aplikace jednoduchými pravidly vůči zbytku třídy${C.rat?'':' (v check-inu jen z voleb)'}. Nejsou to normy SO-RA-D. Berte je jako důvod k rozhovoru, ne jako diagnózu.</p></div>
+  <div class="panel stack"><h3>Klima třídy (průměr 1 až 5)</h3>${kl}<p class="small muted">U otázky na ubližování vidíš jen počet odpovědí „ano“, nikoli kdo odpověděl.</p></div></div>`;
+}
+function layout(C){
+  const N=C.N,sorted=[...C.st].sort((a,b)=>b.comp-a.comp),n0=Math.max(2,Math.ceil(N*.2)),n1=Math.ceil(N*.4);
+  const rings=[sorted.slice(0,n0),sorted.slice(n0,n0+n1),sorted.slice(n0+n1)];
+  const par=[...Array(N).keys()],fd=x=>par[x]===x?x:(par[x]=fd(par[x]));
+  C.st.forEach(s=>s.mut.forEach(i=>{par[fd(s.j)]=fd(i)}));
+  const rad=[.17,.55,.92],pos={};
+  rings.forEach((rg,r)=>{rg.sort((a,b)=>fd(a.j)-fd(b.j)||a.j-b.j);rg.forEach((s,k)=>{const ang=2*Math.PI*k/rg.length-Math.PI/2+r*.5;pos[s.j]=[300+rad[r]*240*Math.cos(ang),300+rad[r]*240*Math.sin(ang)]})});
+  return pos;
+}
+function vSociogram(C,r){
+  const pos=layout(C),R=r.resp,P=R.map(o=>o?new Set([...o.coop,...o.free]):null);
+  if(!C.neg&&UI.edge==='neg')UI.edge='mut';
+  let edges='';const sel=UI.sel;
+  const line=(a,b,k)=>`<line class="${k} ${sel!==null&&a!==sel&&b!==sel?'dim':''}" x1="${pos[a][0]}" y1="${pos[a][1]}" x2="${pos[b][0]}" y2="${pos[b][1]}"/>`;
+  if(UI.edge==='neg')C.rs.forEach(i=>R[i].neg.forEach(j=>{edges+=line(i,j,'e-neg')}));
+  else{if(UI.edge==='pos')C.rs.forEach(i=>P[i].forEach(j=>{if(!(P[j]&&P[j].has(i)))edges+=line(i,j,'e-pos')}));C.st.forEach(s=>s.mut.forEach(i=>{if(i<s.j)edges+=line(i,s.j,'e-mut')}))}
+  const nodes=C.st.map(s=>{const[x,y]=pos[s.j],rr=9+Math.min(s.pos,10)*.9;
+    return `<g class="node s-${s.status} ${sel===s.j?'sel':''}" data-a="pick" data-j="${s.j}" tabindex="0" role="button" aria-label="${esc(s.name)}"><circle cx="${x}" cy="${y}" r="${rr}"/><text x="${x}" y="${y+rr+13}" text-anchor="middle">${esc(s.name.split(' ')[0])}</text></g>`}).join('');
+  const rg=[.17,.55,.92].map(q=>`<circle class="ring" cx="300" cy="300" r="${q*240}"/>`).join('');
+  const modes=[['mut','Vzájemné volby'],['pos','Všechny pozitivní']].concat(C.neg?[['neg','Negativní']]:[]);
+  return `<div class="grid2"><div class="panel stack"><div class="subtabs">${modes.map(([k,t])=>`<button data-a="edge" data-t="${k}" aria-selected="${UI.edge===k}">${t}</button>`).join('')}</div>
+    <svg class="sg" viewBox="0 0 600 620" role="img" aria-label="Orbitální sociogram třídy">${rg}${edges}${nodes}</svg>
+    <div class="legend"><span style="--c:var(--pos)">Hvězda</span><span style="--c:var(--neg)">Odmítaný</span><span style="--c:var(--warn)">Izolovaný${C.rat?' / vlivný, méně oblíbený':''}</span><span style="--c:var(--muted)">Střední pole</span></div>
+    <p class="small muted">Střed = žáci s nejvíce volbami${C.rat?' a nejvyšší sympatií':''}. Velikost bodu = počet přijatých pozitivních voleb. Klikni na žáka.</p></div>
+    <div class="panel stack">${detail(C)}</div></div>`;
+}
+function detail(C){
+  if(UI.sel===null||!C.st[UI.sel])return `<h3>Detail žáka</h3><p class="muted">Vyber žáka v sociogramu nebo v tabulce.</p>`;
+  const s=C.st[UI.sel],nm=a=>a.length?a.map(i=>esc(C.st[i].name)).join(', '):'nikdo';
+  return `<div class="who" style="gap:10px">${avatar(s.name,s.j,44)}<h3>${esc(s.name)}</h3></div><div><span class="tag ${s.status}">${STAT[s.status]}</span></div>
+  <dl class="det">${C.rat?`<dt>Sympatie</dt><dd class="mono">${f1(s.sy)} <span class="muted">(třída ${f1(C.sy)})</span></dd><dt>Vliv</dt><dd class="mono">${f1(s.vl)}</dd><dt>Náklonnost</dt><dd class="mono">${f1(s.nak)} <span class="muted">jak hodnotí ostatní</span></dd>`:''}
+   <dt>Zvolili ho/ji</dt><dd>${nm(s.posFrom)}</dd>${C.neg?`<dt>Odmítli ho/ji</dt><dd>${nm(s.negFrom)}</dd>`:''}
+   <dt>Vzájemně</dt><dd>${nm(s.mut)}</dd><dt>Sám/sama zvolil/a</dt><dd>${s.got?nm(s.out):'neodpověděl/a'}</dd></dl>`;
+}
+function vTable(C){
+  const rows=[...C.st].sort((a,b)=>(C.rat?b.sy-a.sy:0)||b.pos-a.pos).map(s=>`<tr data-a="pick" data-j="${s.j}" class="${UI.sel===s.j?'sel':''}"><td>${esc(s.name)}</td>${C.rat?`<td class="n">${f1(s.sy)}</td><td class="n">${f1(s.vl)}</td><td class="n">${f1(s.nak)}</td>`:''}<td class="n">${s.pos}</td>${C.neg?`<td class="n">${s.neg}</td>`:''}<td class="n">${s.mut.length}</td><td><span class="tag ${s.status}">${STAT[s.status]}</span></td></tr>`).join('');
+  return `<div class="panel stack"><div class="tablewrap"><table><thead><tr><th>Žák</th>${C.rat?'<th class="n">Sympatie</th><th class="n">Vliv</th><th class="n">Náklonnost</th>':''}<th class="n">+ volby</th>${C.neg?'<th class="n">− volby</th>':''}<th class="n">Vzájemné</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>
+  <p class="small muted">${C.rat?'Sympatie a vliv jsou průměr hodnocení od spolužáků (1 až 5). Náklonnost je průměr, který žák sám dává ostatním. ':''}+ volby = kolikrát ho/ji spolužáci vybrali do týmu nebo na volný čas.</p></div>
+  ${UI.sel!==null?`<div class="panel stack">${detail(C)}</div>`:''}`;
+}
+function lineChart(title,pts,o){
+  const W=320,H=150,l=44,rP=18,t=22,b=26,min=o.min,max=o.max;
+  const x=i=>pts.length===1?(l+W-rP)/2:l+i*(W-l-rP)/(pts.length-1),y=v=>t+(H-t-b)*(1-(v-min)/(max-min));
+  const ticks=o.ticks.map(v=>`<line class="grid" x1="${l}" x2="${W-rP}" y1="${y(v)}" y2="${y(v)}"/><text x="${l-6}" y="${y(v)+4}" text-anchor="end">${o.fmt(v)}</text>`).join('');
+  const path=pts.map((p,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join('');
+  const marks=pts.map((p,i)=>`<circle class="pt" cx="${x(i)}" cy="${y(p.v)}" r="5"><title>${esc(p.label)}: ${o.fmt(p.v)}</title></circle><text x="${x(i)}" y="${H-8}" text-anchor="middle">${esc(p.label)}</text>`).join('');
+  const last=pts[pts.length-1];
+  return `<div class="panel stack" style="gap:6px"><h3>${title}</h3><svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)}">${ticks}<path class="ln" d="${path}"/>${marks}<text class="val" x="${x(pts.length-1)}" y="${y(last.v)-10}" text-anchor="middle">${o.fmt(last.v)}</text></svg>${o.note?`<p class="small muted">${o.note}</p>`:''}</div>`;
+}
+function vTrend(c){
+  const rs=c.rounds.filter(r=>r.resp.filter(Boolean).length>=4);
+  if(rs.length<2)return `<div class="panel"><p class="muted">Vývoj se ukáže po dvou a více kolech, ve kterých odpověděli aspoň čtyři žáci.</p></div>`;
+  const D=rs.map(r=>({r,C:compute(c,r)}));
+  const pts=f=>D.map(d=>({label:shortDate(d.r.date),v:f(d.C)}));
+  const pct=v=>Math.round(v)+' %';
+  const tbl=D.map(d=>`<tr><td>${fmtDate(d.r.date)}</td><td>${TYPE[d.r.type]}</td><td class="n">${d.C.rs.length}/${d.C.N}</td><td class="n">${f1(d.C.mood)}</td><td class="n">${Math.round(100*d.C.withMut/d.C.rs.length)} %</td><td class="n">${d.C.izol}</td><td class="n">${d.C.ubl}</td></tr>`).join('');
+  const ivo=c.students.map((s,i)=>({s,i,v:D.map(d=>d.C.st[i].pos)})).filter(x=>x.v[x.v.length-1]-x.v[0]!==0).sort((a,b)=>(b.v[b.v.length-1]-b.v[0])-(a.v[a.v.length-1]-a.v[0]));
+  const mov=[...ivo.slice(0,3),...ivo.slice(-3).reverse()].filter((x,k,a)=>a.indexOf(x)===k).map(x=>{const d=x.v[x.v.length-1]-x.v[0];return `<li>${avatar(x.s.name,x.i,30)}<b>${esc(x.s.name)}</b><span class="chg ${d>0?'up':'down'}">${d>0?'+':''}${d} voleb</span><span class="muted small">${x.v.join(' → ')}</span></li>`}).join('');
+  return `<div class="grid3">
+    ${lineChart('Nálada ve třídě',pts(C=>C.mood),{min:1,max:5,ticks:[1,3,5],fmt:f1,note:'Průměr pěti otázek o klimatu (1 až 5).'})}
+    ${lineChart('Žáci se vzájemnou volbou',pts(C=>100*C.withMut/C.rs.length),{min:0,max:100,ticks:[0,50,100],fmt:pct,note:'Podíl odpovídajících, které si někdo vybral a oni jeho.'})}
+    ${lineChart('Izolovaní žáci',pts(C=>C.izol),{min:0,max:Math.max(4,...D.map(d=>d.C.izol)),ticks:[0,Math.max(4,...D.map(d=>d.C.izol))],fmt:v=>String(Math.round(v)),note:'Nejvýš jedna přijatá volba a žádná vzájemná.'})}
+  </div>
+  <div class="grid2"><div class="panel stack"><h3>Největší změny u žáků</h3><ul class="attn">${mov||'<li class="muted">Beze změn.</li>'}</ul><p class="small muted">Počet přijatých pozitivních voleb od prvního do posledního kola.</p></div>
+  <div class="panel stack"><h3>Kola v číslech</h3><div class="tablewrap"><table><thead><tr><th>Datum</th><th>Typ</th><th class="n">Odp.</th><th class="n">Nálada</th><th class="n">Vzáj.</th><th class="n">Izol.</th><th class="n">Ubliž.</th></tr></thead><tbody>${tbl}</tbody></table></div></div></div>`;
+}
+
+/* ================= export ================= */
+const csvCell=v=>{const s=String(v==null?'':v);return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
+const csvText=rows=>'﻿'+rows.map(r=>r.map(csvCell).join(';')).join('\r\n');
+function csvResults(c,r){
+  const C=compute(c,r),nm=a=>a.map(i=>c.students[i].name).join(', ');
+  const head=['Žák','Odpověděl'].concat(C.rat?['Sympatie','Vliv','Náklonnost']:[],['Pozitivní volby','Vzájemné vazby','Status','Zvolili ho/ji','Sám zvolil'],C.neg?['Negativní volby','Odmítli ho/ji']:[]);
+  const rows=C.st.map(s=>[s.name,s.got?'ano':'ne'].concat(C.rat?[f1(s.sy),f1(s.vl),f1(s.nak)]:[],[s.pos,s.mut.length,STAT[s.status],nm(s.posFrom),nm(s.out)],C.neg?[s.neg,nm(s.negFrom)]:[]));
+  return csvText([head].concat(rows));
+}
+function csvMatrix(c,r){
+  const head=['Volí \\ je volen/a'].concat(c.students.map(s=>s.name));
+  const rows=c.students.map((s,i)=>[s.name].concat(c.students.map((_,j)=>{const a=r.resp[i];if(i===j||!a)return '';if(r.type==='f')return a.symp[j];return (a.coop.includes(j)?'T':'')+(a.free.includes(j)?'V':'')+(a.neg.includes(j)?'−':'')})));
+  return csvText([head].concat(rows));
+}
+function vExport(){
+  const c=CL(),r=pickRound(c);
+  return `<div class="panel stack"><h2>Export a záloha</h2>
+   <p class="muted small">Data jsou jen v tomto prohlížeči. Po vymazání dat prohlížeče zmizí, proto si po každém kole stáhni zálohu.</p>
+   <p class="small"><b>Kolo:</b> ${fmtDate(r.date)} · ${TYPE[r.type]} <span class="muted">(změníš v Přehledu)</span></p>
+   <div class="rowf"><button class="btn" data-a="dl" data-w="res">Výsledky kola (CSV)</button><button class="btn ghost" data-a="cp" data-w="res">Kopírovat</button></div>
+   <div class="rowf"><button class="btn" data-a="dl" data-w="mat">${r.type==='f'?'Matice sympatií':'Matice voleb'} (CSV)</button><button class="btn ghost" data-a="cp" data-w="mat">Kopírovat</button></div>
+   <div class="rowf"><button class="btn" data-a="dl" data-w="json">Záloha všech tříd (JSON)</button><button class="btn ghost" data-a="cp" data-w="json">Kopírovat</button></div>
+   <p class="small muted">CSV používá středník a UTF-8, česky nastavený Excel ho otevře rovnou. ${r.type==='f'?'':'V matici voleb znamená T tým, V volný čas, − negativní volbu. '}Záloha obsahuje kódy žáků i odpovědi, ukládej ji bezpečně.</p>
+   <div id="expmsg" class="small" aria-live="polite"></div>
+   <details><summary>Obnovit ze zálohy</summary><div class="stack" style="margin-top:10px"><textarea id="restore" spellcheck="false" placeholder='{"v":2,...}' aria-label="Obsah zálohy"></textarea><button class="btn ghost" data-a="restore">Obnovit (nahradí současná data)</button></div></details></div>`;
+}
+function expData(w){const c=CL(),r=pickRound(c),d=new Date().toISOString().slice(0,10);
+  return w==='res'?[csvResults(c,r),'vysledky-'+d+'.csv','text/csv;charset=utf-8']:w==='mat'?[csvMatrix(c,r),'matice-'+d+'.csv','text/csv;charset=utf-8']:[JSON.stringify(DB),'sociometrie-zaloha-'+d+'.json','application/json']}
+const expMsg=t=>{const e=$('#expmsg');if(e)e.textContent=t};
+
+/* ================= skupiny do dílny ================= */
+function makeGroups(c,r,size,seed){
+  const N=c.students.length,R=r.resp,W=[...Array(N)].map(()=>Array(N).fill(0)),ch=[...Array(N)].map(()=>new Set()),ng=[...Array(N)].map(()=>new Set());
+  const s=(i,j)=>{const a=R[i];if(!a)return 0;let v=0;if(a.coop.includes(j))v+=3;if(a.free.includes(j))v+=1.5;if(r.neg&&a.neg.includes(j))v-=8;if(r.type==='f'&&a.symp[j])v+=(a.symp[j]-3)*.4;return v};
+  for(let i=0;i<N;i++)for(let j=0;j<N;j++)if(i!==j){W[i][j]=s(i,j);const a=R[i];if(a&&(a.coop.includes(j)||a.free.includes(j)))ch[i].add(j);if(a&&r.neg&&a.neg.includes(j))ng[i].add(j)}
+  const k=Math.max(1,Math.round(N/size)),sizes=Array.from({length:k},(_,g)=>Math.floor(N/k)+(g<N%k?1:0));
+  const gs=g=>{let v=0;for(const i of g){let has=false;for(const j of g){if(i===j)continue;v+=W[i][j];if(ch[i].has(j)||ch[j].has(i))has=true}v+=has?6:-6}return v};
+  const rnd=rng(seed*7919+N);let best=null,bestV=-1e9;
+  for(let rs=0;rs<40;rs++){
+    const ord=[...Array(N).keys()];for(let q=N-1;q>0;q--){const m=Math.floor(rnd()*(q+1));[ord[q],ord[m]]=[ord[m],ord[q]]}
+    let p=0;const G=sizes.map(z=>ord.slice(p,p+=z));let V=G.map(gs);
+    for(let it=0;it<2500&&k>1;it++){
+      const a=Math.floor(rnd()*k);let b=Math.floor(rnd()*(k-1));if(b>=a)b++;
+      const x=Math.floor(rnd()*G[a].length),y=Math.floor(rnd()*G[b].length);
+      const ga=G[a].slice(),gb=G[b].slice();[ga[x],gb[y]]=[gb[y],ga[x]];
+      const va=gs(ga),vb=gs(gb);
+      if(va+vb>=V[a]+V[b]){G[a]=ga;G[b]=gb;V[a]=va;V[b]=vb}
+    }
+    const tot=V.reduce((x,y)=>x+y,0);if(tot>bestV){bestV=tot;best=G.map(g=>g.slice())}
+  }
+  return best.map(g=>g.map(i=>({i,resp:!!R[i],own:g.some(j=>j!==i&&ch[i].has(j)),chosen:g.some(j=>j!==i&&ch[j].has(i)),negIn:g.some(j=>j!==i&&(ng[i].has(j)||ng[j].has(i)))})));
+}
+function renderSkupiny(){
+  const c=CL(),r=pickRound(c);if(!r)return emptyResults(c);
+  const G=makeGroups(c,r,UI.gsize,UI.gseed);
+  const resp=G.flat().filter(m=>m.resp),ok=resp.filter(m=>m.own).length,negs=G.flat().filter(m=>m.negIn).length;
+  const cards=G.map((g,k)=>`<div class="panel grp"><h3>Skupina ${k+1}</h3>${g.map(m=>`<div class="m">${avatar(c.students[m.i].name,m.i,36)}<div><b>${esc(c.students[m.i].name)}</b>${!m.resp?`<small>neodpověděl/a${m.chosen?', někdo ho/ji tu chce':''}</small>`:m.own?'<small class="ok">má tu svou volbu</small>':`<small class="no">bez vlastní volby${m.chosen?', ale někdo ho/ji tu chce':''}</small>`}</div></div>`).join('')}</div>`).join('');
+  const txt=G.map((g,k)=>`Skupina ${k+1}: `+g.map(m=>c.students[m.i].name).join(', ')).join('\n');
+  return `<div class="stack"><div class="panel stack"><div class="rowf" style="justify-content:space-between"><div><h2>Návrh skupin do dílny</h2><p class="muted small">Aplikace hledá rozdělení, kde má každý ve skupině někoho, koho si sám vybral (hlavně do týmu)${r.neg?', a nedává k sobě žáky, kteří se odmítli':''}.</p></div>
+      <div class="rowf"><label class="small muted" for="gsize">Velikost skupiny</label><select id="gsize" style="width:auto">${[2,3,4,5,6].map(n=>`<option value="${n}" ${UI.gsize===n?'selected':''}>${n}</option>`).join('')}</select>${roundSelect(c,r)}</div></div>
+    <div class="rowf"><span class="pill ${ok===resp.length?'ok':'wait'}">${ok} z ${resp.length} odpovídajících má ve skupině svou volbu</span>${r.neg?`<span class="pill ${negs?'bad':'ok'}">${negs?negs+' žáků je ve skupině s někým, koho odmítli':'Žádná odmítnutí uvnitř skupin'}</span>`:''}</div>
+    <div class="rowf"><button class="btn" data-a="regroup">Jiné rozdělení</button><button class="btn ghost" data-a="copygroups" data-txt="${esc(txt)}">Kopírovat seznam</button></div>
+    <p class="small muted">Je to návrh, ne verdikt. Znáš třídu líp, skupiny klidně uprav podle sebe.</p></div>
+    <div class="grid3">${cards}</div></div>`;
+}
+
+/* ================= souhrn pro třídu ================= */
+function renderProTridu(){
+  const c=CL(),u=c.rounds.filter(r=>r.resp.filter(Boolean).length>=4);
+  if(!u.length)return `<div class="panel"><p class="muted">Souhrn pro třídu se ukáže po kole, ve kterém odpověděli aspoň čtyři žáci.</p></div>`;
+  const r=u.find(x=>x.id===UI.round)||u[u.length-1],k=u.indexOf(r),prev=k>0?u[k-1]:null;
+  const C=compute(c,r),P=prev?compute(c,prev):null;
+  const chg=(a,b,fmt,unit)=>{if(b==null)return '';const d=a-b;const cls=Math.abs(d)<.05?'same':d>0?'up':'down';return `<span class="chg ${cls}">${Math.abs(d)<.05?'stejně jako minule':(d>0?'▲ o ':'▼ o ')+fmt(Math.abs(d))+(unit||'')+' oproti minule'}</span>`};
+  const kl=C.klima.map((v,i)=>({v,i})).sort((a,b)=>b.v-a.v);
+  const mutPct=Math.round(100*C.withMut/C.rs.length),pPct=P?Math.round(100*P.withMut/P.rs.length):null;
+  return `<div class="stack"><div class="rowf noprint" style="justify-content:space-between"><p class="muted small">Anonymní souhrn k promítnutí na třídnické hodině. Žádná jména, žádné signály o ubližování.</p><div class="rowf">${u.length>1?`<select id="roundSel" style="width:auto">${u.map(x=>`<option value="${x.id}" ${x.id===r.id?'selected':''}>${fmtDate(x.date)}</option>`).join('')}</select>`:''}<button class="btn sm" data-a="fullscreen">Na celou obrazovku</button></div></div>
+  <div class="show" id="show"><div><div class="label">${esc(c.name.replace(' (ukázka)',''))} · ${fmtDate(r.date)}</div><h2>Jak se máme jako třída</h2></div>
+    <div class="big">
+      <div class="card"><b>${f1(C.klima[0])}<span style="font-size:.4em"> / 5</span></b><span>Jak dobře se ve třídě cítíme</span>${P?chg(C.klima[0],P.klima[0],f1):''}</div>
+      <div class="card"><b>${C.withMut} z ${C.rs.length}</b><span>z nás má ve třídě někoho, kdo si ho vybral, a on vybral jeho</span>${P?`<span class="chg same">minule ${P.withMut} z ${P.rs.length}</span>`:''}</div>
+      <div class="card sun"><b style="font-size:clamp(26px,3.4vw,40px)">${KL_SHOW[kl[0].i]}</b><span>Tohle nám jde nejlíp (${f1(kl[0].v)} z 5)</span></div>
+      <div class="card"><b style="font-size:clamp(26px,3.4vw,40px)">${KL_SHOW[kl[4].i]}</b><span>Na tomhle můžeme zapracovat (${f1(kl[4].v)} z 5)</span></div>
+    </div>
+    <p class="muted">Odpovědělo ${C.rs.length} z ${C.N}. Díky všem, kdo se zapojili.</p></div></div>`;
+}
+
+/* ================= třída: nastavení a lístky ================= */
+function slipHTML(c,i){const s=c.students[i];return `<div class="slip"><div class="qrb">${qrSvg(studentLink(c,i),'L')}</div><div class="t"><small>${esc(c.name)}</small><b>${esc(s.name)}</b><small>Naskenuj mobilem, až učitel spustí dotazník. Lístek si nech, použiješ ho i příště.</small><small>Tvůj kód: <span class="cd">${s.code.slice(0,3)}-${s.code.slice(3)}</span></small><small>Lístek nikomu nepůjčuj.</small></div></div>`}
+function renderTrida(){
+  const c=CL(),names=UI.names!==null?UI.names:'';
+  return `<div class="stack noprint">
+    <div class="grid2"><div class="panel stack"><h2>Nastavení třídy</h2>
+      <div><label class="label" for="clsName">Název třídy</label><input type="text" id="clsName" value="${esc(c.name)}"></div>
+      <div><label class="label" for="clsBase">Adresa aplikace (do QR kódů)</label><input type="text" id="clsBase" value="${esc(c.base||'')}">
+        <p class="small muted" style="margin-top:4px">Adresa, na které aplikace běží, například https://jakubmonski-cmyk.github.io/sociometrie/. Po změně přetiskni lístky.</p></div>
+      <p class="small muted">${c.students.length} žáků · ${c.rounds.length} kol</p>
+      <div class="rowf"><button class="btn ${UI.confirm==='del'?'danger':'ghost'} sm" data-a="delclass">${UI.confirm==='del'?'Opravdu smazat třídu i všechna kola?':'Smazat třídu'}</button>${UI.confirm==='del'?'<button class="btn ghost sm" data-a="cancel">Zrušit</button>':''}</div></div>
+    <div class="panel stack"><h2>Nová třída</h2>
+      <p class="muted small">Jedno jméno na řádek, nejvýše ${MAXN}. Do odkazů se ukládá jen jméno a iniciála příjmení. Každý žák dostane náhodný kód.</p>
+      <div><label class="label" for="newName">Název</label><input type="text" id="newName" placeholder="např. 1.A strojní mechanik"></div>
+      <label class="label" for="clsNames">Seznam žáků</label><textarea id="clsNames" spellcheck="false" placeholder="Jan Novák&#10;Petra Svobodová">${esc(names)}</textarea>
+      <label class="switch"><input type="checkbox" id="shorten" ${UI.shorten?'checked':''}><span>Zkrátit na jméno a iniciálu (Jan Novák → Jan N.)</span></label>
+      <button class="btn" data-a="create">Vytvořit třídu a kódy</button>
+      ${UI.err?`<p class="small" style="color:var(--neg)">${esc(UI.err)}</p>`:''}</div></div>
+  </div>
+  <div class="panel stack" id="printarea" style="margin-top:18px"><div class="rowf noprint" style="justify-content:space-between"><div><h2>Lístky s kódy</h2><p class="small muted">10 lístků na A4. Lístek platí pro všechna kola, stačí ho vytisknout jednou.</p></div><button class="btn" data-a="print">Vytisknout</button></div>
+    <div class="slips">${c.students.map((_,i)=>slipHTML(c,i)).join('')}</div>
+    <p class="small muted noprint">Když se tisk nespustí (například ve vloženém náhledu), otevři aplikaci v samostatném okně prohlížeče.</p></div>
+  <details class="panel noprint" style="margin-top:18px"><summary>Vyzkoušet dotazník jako žák</summary>${renderNahled()}</details>`;
+}
+function renderNahled(){
+  const c=CL();
+  if(!ST||!ST.embedded){
+    return `<div class="stack" style="margin-top:12px;max-width:520px"><p class="muted small">Projdi dotazník tak, jak ho žák uvidí v mobilu. Nic se neodesílá, na konci můžeš odpověď ručně přidat do posledního kola.</p>
+      <div class="choice"><label><input type="radio" name="pvt" value="c" checked><span>Check-in</span></label><label><input type="radio" name="pvt" value="f"><span>Plné kolo</span></label></div>
+      <label class="label" for="prevSel">Žák</label><select id="prevSel">${c.students.map((s,i)=>`<option value="${i}">${esc(s.name)}</option>`).join('')}</select><button class="btn" data-a="preview">Spustit náhled</button></div>`;
+  }
+  return `<div class="grid2" style="margin-top:12px"><div class="stack"><p class="muted">Takhle to vidí ${esc(ST.names[ST.idx])} po naskenování lístku.</p><div class="codebox" style="max-height:110px;overflow:auto">${esc(studentLink(c,ST.idx))}</div>
+    <div class="rowf"><button class="btn ghost sm" data-a="copylink">Zkopírovat odkaz</button><button class="btn ghost sm" data-a="closeprev">Zavřít náhled</button></div>
+    <p class="small muted">Část odkazu za znakem # se nikdy neposílá na server, takže GitHub ani nikdo jiný seznam jmen nevidí.</p></div>${phoneHTML()}</div>`;
+}
+function renderInfo(){return `<div class="panel doc stack">
+  <section><h2>Jak to funguje</h2><ul>
+  <li>Aplikace je jedna webová stránka. Nemá databázi ani účty. Všechno, co zadáš, zůstává v tomto prohlížeči.</li>
+  <li>Žáci dostanou jednou za rok lístek s QR kódem a osobním kódem. Lístek platí pro všechna kola.</li>
+  <li>V hodině spustíš sběr. Žák naskenuje lístek, telefon se spojí přímo s tvým prohlížečem a odpověď přijde rovnou k tobě. Spojovací server (PeerJS) jen pomůže zařízením se najít, data přes něj neprochází.</li>
+  <li>Check-in trvá asi 3 minuty a hodí se třikrát až čtyřikrát za rok. Plné kolo s hodnocením každého spolužáka asi 8 minut, stačí jednou až dvakrát za rok.</li></ul></section>
+  <section><h2>Pro kolegy</h2><ul>
+  <li>Stačí otevřít adresu aplikace, v záložce Třída založit vlastní třídu a vytisknout lístky. Každý učitel má data jen u sebe.</li>
+  <li>Sbírej a prohlížej výsledky vždy na stejném počítači a ve stejném prohlížeči. Na jiný počítač data přeneseš zálohou (Výsledky, Export).</li></ul></section>
+  <section><h2>Na co si dát pozor</h2><ul>
+  <li><b>Stránku se sběrem nech otevřenou</b>, dokud všichni neodešlou. Notebook nesmí usnout.</li>
+  <li><b>Síť:</b> některé školní nebo mobilní sítě přímé spojení blokují. Žákovi se pak odpověď neodešle, ale telefon mu ukáže odpovědní kód. Ten vložíš nebo naskenuješ v záložce Sběr.</li>
+  <li><b>Záloha:</b> po vymazání dat prohlížeče data zmizí. Po každém kole si stáhni zálohu.</li>
+  <li><b>Osobní údaje nezletilých:</b> hodnocení vztahů konkrétních osob vyžaduje informování nebo souhlas zákonných zástupců a konzultaci s pověřencem školy.</li>
+  <li><b>Výsledky jsou orientační.</b> Statusy nejsou normy SO-RA-D. U signálů ubližování předej věc školnímu metodikovi prevence.</li></ul></section></div>`;}
+
+/* ================= vykreslení ================= */
+function render(){
+  const root=$('#root');
+  if(MODE==='student'){root.innerHTML=`<div class="rowf" style="justify-content:space-between"><span class="label">Sociometrie třídy</span></div>`+phoneHTML();return}
+  const c=CL();
+  const tabs=[['sber','Sběr'],['vysledky','Výsledky'],['skupiny','Skupiny'],['protridu','Pro třídu'],['trida','Třída'],['info','Info']].map(([k,t])=>`<button role="tab" data-a="tab" data-t="${k}" aria-selected="${UI.tab===k}">${t}${k==='sber'&&SESS?' ●':''}</button>`).join('');
+  const sel=`<select id="clsSel" aria-label="Třída">${DB.classes.map(x=>`<option value="${x.id}" ${x.id===c.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select>`;
+  const demo=c.demo?`<div class="note warn noprint"><span>Ukázková třída s vymyšlenými jmény a třemi koly. Vlastní třídu založíš v záložce Třída.</span><button class="btn sm" data-a="own">Založit vlastní třídu</button></div>`:'';
+  const body=UI.tab==='sber'?renderSber():UI.tab==='vysledky'?renderVysledky():UI.tab==='skupiny'?renderSkupiny():UI.tab==='protridu'?renderProTridu():UI.tab==='trida'?renderTrida():renderInfo();
+  root.innerHTML=`<header class="top noprint"><div class="brand">${sel}<h1>Sociometrie třídy</h1></div><div class="tabs" role="tablist">${tabs}</div></header>${demo}<main>${body}</main>`;
+  if(CAM){const v=$('#cam');if(v){v.srcObject=CAM.stream;v.play().catch(()=>{})}}
+}
+
+/* ================= akce ================= */
+const toggle=(arr,v,max)=>{const k=arr.indexOf(v);if(k>=0)arr.splice(k,1);else if(arr.length<max)arr.push(v)};
+const act={
+  tab(b){if(b.dataset.t!=='sber')stopScan();UI.tab=b.dataset.t;UI.confirm=null;render()},
+  sub(b){UI.sub=b.dataset.t;render()},
+  edge(b){UI.edge=b.dataset.t;render()},
+  pick(b){UI.sel=+b.dataset.j;render()},
+  own(){UI.tab='trida';render();const t=$('#newName');if(t)t.focus()},
+  startnew(){const c=CL();const r={id:randStr(6).toLowerCase(),date:new Date().toISOString(),type:UI.newType,neg:UI.newNeg,resp:Array(c.students.length).fill(null)};c.rounds.push(r);save();UI.fb=[];startSession(r.id)},
+  continue(){const c=CL();UI.fb=[];startSession(c.rounds[c.rounds.length-1].id)},
+  stop(){stopSession();stopScan();render()},
+  scan(){if(CAM){stopScan();render()}else startScan()},
+  paste(){const t=$('#paste').value;if(!t.trim())return;ingest(t);$('#paste').value='';refreshSess()},
+  create(){
+    const lines=(UI.names||'').split('\n').map(s=>s.trim()).filter(Boolean);UI.err='';
+    if(lines.length<4)UI.err='Zadej alespoň 4 žáky.';else if(lines.length>MAXN)UI.err='Nejvýše '+MAXN+' žáků.';
+    if(UI.err){render();return}
+    let names=lines.map(l=>shortName(l,UI.shorten));const seen={};names=names.map(n=>{seen[n]=(seen[n]||0)+1;return seen[n]>1?n+' '+seen[n]:n});
+    const nm=($('#newName')&&$('#newName').value.trim())||'Nová třída';
+    const c=newClass(nm,names,(CL()&&!CL().demo&&CL().base)||baseUrl());DB.classes.push(c);DB.cur=c.id;UI.names=null;UI.round=null;UI.sel=null;save();render();
+  },
+  delclass(){
+    if(UI.confirm!=='del'){UI.confirm='del';render();return}
+    const c=CL();if(SESS&&SESS.cid===c.id)stopSession();DB.classes=DB.classes.filter(x=>x.id!==c.id);
+    if(!DB.classes.length)DB.classes.push(demoClass());DB.cur=DB.classes[0].id;UI.confirm=null;save();render();
+  },
+  cancel(){UI.confirm=null;render()},
+  print(){try{window.print()}catch(e){}},
+  regroup(){UI.gseed++;render()},
+  copygroups(b){copyText(b.dataset.txt,ok=>{b.textContent=ok?'Zkopírováno':'Kopírování nešlo'})},
+  fullscreen(){const s=$('#show');try{s.requestFullscreen().catch(()=>{})}catch(e){}},
+  dl(b){const[d,n,m]=expData(b.dataset.w);try{const u=URL.createObjectURL(new Blob([d],{type:m})),a=document.createElement('a');a.href=u;a.download=n;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);expMsg('Stahuji '+n+'. Pokud se nic nestalo, použij Kopírovat.')}catch(e){expMsg('Stažení nešlo, použij Kopírovat.')}},
+  cp(b){const[d]=expData(b.dataset.w);copyText(d,ok=>expMsg(ok?'Zkopírováno do schránky.':'Kopírování nešlo.'))},
+  restore(){try{const d=JSON.parse($('#restore').value);if(!d||!Array.isArray(d.classes)||!d.classes.length)throw 0;stopSession();DB=d;if(!CL())DB.cur=DB.classes[0].id;save();UI.sel=null;UI.round=null;render()}catch(e){expMsg('Záloha nejde načíst. Vlož celý obsah souboru JSON.')}},
+  preview(){const c=CL(),i=+$('#prevSel').value,t=(document.querySelector('input[name=pvt]:checked')||{}).value||'c';
+    startStudent({cid:c.id,idx:i,code:c.students[i].code,names:c.students.map(s=>s.name)},true);ST.cfg={id:null,type:t,neg:t==='f'};render();const d=document.querySelector('details.panel');if(d)d.open=true},
+  closeprev(){ST=null;render();const d=document.querySelector('details.panel');if(d)d.open=true},
+  copylink(b){copyText(studentLink(CL(),ST.idx),ok=>{b.textContent=ok?'Zkopírováno':'Kopírování nešlo'})},
+  start(){beginSurvey();refreshPhone();window.scrollTo(0,0)},
+  rate(b){
+    const j=ST.order[ST.i],had=!!(ST.a.symp[j]&&ST.a.vliv[j]),i0=ST.i;
+    ST.a[b.dataset.k][j]=+b.dataset.v;refreshPhone();
+    if(!had&&ST.a.symp[j]&&ST.a.vliv[j])setTimeout(()=>{if(ST&&ST.i===i0&&ST.plan[ST.step]==='rate')act.next()},260);
+  },
+  nom(b){toggle(ST.a[b.dataset.k],+b.dataset.j,b.dataset.k==='neg'?2:3);refreshPhone()},
+  kl(b){ST.a.klima[+b.dataset.k]=+b.dataset.v;refreshPhone()},
+  ubl(b){ST.a.ubl=b.dataset.v;refreshPhone()},
+  next(){if(ST.plan[ST.step]==='rate'&&ST.i<ST.order.length-1)ST.i++;else ST.step++;refreshPhone();if(!ST.embedded)window.scrollTo(0,0)},
+  back(){const cur=ST.plan[ST.step];if(cur==='rate'&&ST.i>0)ST.i--;else if(ST.step>0){ST.step--;if(ST.plan[ST.step]==='rate')ST.i=ST.order.length-1}refreshPhone()},
+  send(){
+    ST.out=encodeResp(ST.cid,ST.idx,ST.code,ST.names.length,ST.cfg.type,ST.a);ST.step=ST.plan.length-1;
+    if(!ST.embedded){stuStore({out:ST.out,rid:ST.cfg.id,acked:false});trySend()}
+    refreshPhone();if(!ST.embedded)window.scrollTo(0,0);
+  },
+  copyout(b){copyText(ST.out,ok=>{b.textContent=ok?'Zkopírováno':'Označ kód a zkopíruj ručně'})},
+  ingestout(b){const c=CL();if(!c.rounds.length){b.textContent='Nejdřív spusť aspoň jedno kolo';return}ingest(ST.out);save();b.textContent=UI.fb[0]?UI.fb[0].t:'Hotovo';b.disabled=true},
+  restart(){const t=ST.cfg;startStudent({cid:ST.cid,idx:ST.idx,code:ST.code,names:ST.names},true);ST.cfg=t;refreshPhone()}
+};
+document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(b&&act[b.dataset.a]&&!b.disabled)act[b.dataset.a](b)});
+document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.matches&&e.target.matches('g[data-a]')){e.preventDefault();act[e.target.dataset.a](e.target)}});
+document.addEventListener('input',e=>{
+  const id=e.target.id;if(MODE!=='teacher')return;const c=CL();
+  if(id==='clsName'){c.name=e.target.value;save();const o=$('#clsSel option:checked');if(o)o.textContent=c.name}
+  else if(id==='clsNames')UI.names=e.target.value;
+  else if(id==='clsBase'){c.base=e.target.value.trim();save();clearTimeout(act._t);act._t=setTimeout(()=>{const sl=$('.slips');if(sl)sl.innerHTML=c.students.map((_,i)=>slipHTML(c,i)).join('')},400)}
+});
+document.addEventListener('change',e=>{
+  const t=e.target,id=t.id;if(MODE!=='teacher')return;
+  if(id==='clsSel'){if(SESS)stopSession();stopScan();DB.cur=t.value;UI.round=null;UI.sel=null;UI.fb=[];save();render()}
+  else if(id==='roundSel'){UI.round=t.value;UI.sel=null;render()}
+  else if(id==='gsize'){UI.gsize=+t.value;render()}
+  else if(id==='shorten')UI.shorten=t.checked;
+  else if(id==='newNeg')UI.newNeg=t.checked;
+  else if(t.name==='rt')UI.newType=t.value;
+});
+
+/* ================= start ================= */
+(function boot(){
+  const info=location.hash.startsWith('#v2~')?parseStudentHash(location.hash):null;
+  if(info){MODE='student';startStudent(info,false);render();netInit();return}
+  if(location.hash.startsWith('#v')){document.getElementById('root').innerHTML='<div class="panel stack"><h2>Tenhle odkaz nejde přečíst</h2><p class="muted">Lístek je možná ze starší verze aplikace. Požádej učitele o nový.</p></div>';return}
+  DB=load()||{v:2,classes:[demoClass()],cur:null};if(!CL())DB.cur=DB.classes[0].id;else DB.cur=CL().id;
+  DB.classes.forEach(c=>{if(!c.base)c.base=baseUrl()});save();
+  if(!CL().rounds.length)UI.tab='trida';
+  render();
+})();
+</script>
+</body>
+</html>
